@@ -1,0 +1,6 @@
+node_modules/
+.kiro
+.vscode
+.dev.vars
+dist/
+.wrangler/
