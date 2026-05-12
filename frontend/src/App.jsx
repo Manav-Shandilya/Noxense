@@ -133,17 +133,6 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      {!online && (
-        <div className="offline-banner" role="alert">
-          You are offline. Changes will sync when connection is restored.
-        </div>
-      )}
-      {syncing && (
-        <div className="sync-banner" role="status">
-          Syncing offline changes…
-        </div>
-      )}
-
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-nav">
@@ -164,6 +153,17 @@ export default function App() {
 
       {/* Main content area */}
       <div className="main-wrapper">
+        {!online && (
+          <div className="offline-banner" role="alert">
+            You are offline. Changes will sync when connection is restored.
+          </div>
+        )}
+        {syncing && (
+          <div className="sync-banner" role="status">
+            Syncing offline changes…
+          </div>
+        )}
+
         {/* Top Header */}
         <header className="top-header">
           <div className="header-left">
