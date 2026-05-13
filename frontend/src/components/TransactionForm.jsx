@@ -5,6 +5,7 @@ import {
   fetchCategories,
   fetchAccounts,
 } from '../services/api';
+import { checkBudgetAfterMutation } from '../services/notifications';
 
 function todayStr() {
   const d = new Date();
@@ -84,6 +85,7 @@ export default function TransactionForm({ transaction, onClose, onSaved }) {
       }
       onSaved();
       onClose();
+      checkBudgetAfterMutation();
     } catch (err) {
       setSubmitError(err.message || 'Failed to save transaction');
     } finally {

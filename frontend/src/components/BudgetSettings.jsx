@@ -121,10 +121,6 @@ export default function BudgetSettings({ onClose, onChanged }) {
     year: 'numeric',
   });
 
-  useEffect(() => {
-    console.log('Monthly Buge - ', budgetAmount);
-  }, [budgetAmount]);
-
   return (
     <div className="budget-settings">
       <div className="budget-settings-header">

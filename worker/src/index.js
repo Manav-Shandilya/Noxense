@@ -696,7 +696,7 @@ export default {
 
         // Flags
         const isOverBudget = remainingBudget <= 0;
-        const isBelowThreshold = remainingBudget < budgetAmount * (alertThresholdPercent / 100);
+        const isAboveThreshold = remainingBudget < budgetAmount * (alertThresholdPercent / 100);
 
         // Category breakdown (expense categories for this month)
         const { results: categoryBreakdown } = await env.DB.prepare(
@@ -740,7 +740,7 @@ export default {
           budgetUtilizationPercent,
           alertThresholdPercent,
           isOverBudget,
-          isBelowThreshold,
+          isAboveThreshold,
           categoryBreakdown,
           accounts,
           totalBalance,

@@ -108,15 +108,15 @@ export default function Dashboard({ onAddTransaction }) {
       .then((result) => {
         if (!cancelled) {
           setData(result);
-          checkAndNotify({
-            month: period.month,
-            year: period.year,
-            remainingBudget: result.remainingBudget,
-            budgetAmount: result.budgetAmount,
-            alertThresholdPercent: result.alertThresholdPercent,
-            isBelowThreshold: result.isBelowThreshold,
-            isOverBudget: result.isOverBudget,
-          });
+        //   checkAndNotify({
+        //     month: period.month,
+        //     year: period.year,
+        //     remainingBudget: result.remainingBudget,
+        //     budgetAmount: result.budgetAmount,
+        //     alertThresholdPercent: result.alertThresholdPercent,
+        //     aboveThreshold: result.isAboveThreshold,
+        //     isOverBudget: result.isOverBudget,
+        //   });
         }
       })
       .catch((err) => {
@@ -186,7 +186,7 @@ export default function Dashboard({ onAddTransaction }) {
     budgetUtilizationPercent,
     alertThresholdPercent,
     isOverBudget,
-    isBelowThreshold,
+    isAboveThreshold,
     categoryBreakdown,
     accounts,
     totalBalance,
@@ -235,7 +235,7 @@ export default function Dashboard({ onAddTransaction }) {
           <div className="card-top">
             <span className="card-label">EXPENSES</span>
             {isOverBudget && <span className="card-badge badge-danger">▲ Action Needed</span>}
-            {!isOverBudget && isBelowThreshold && <span className="card-badge badge-warning">▲ Action Needed</span>}
+            {!isOverBudget && isAboveThreshold && <span className="card-badge badge-warning">▲ Action Needed</span>}
           </div>
           <span className="card-value">{formatCurrency(totalExpenses)}</span>
           <span className="card-icon">🛒</span>
@@ -277,7 +277,7 @@ export default function Dashboard({ onAddTransaction }) {
         </div>
         <div className="progress-bar" role="progressbar" aria-valuenow={fillWidth} aria-valuemin={0} aria-valuemax={100}>
           <div
-            className={`progress-fill${isOverBudget ? ' over-budget' : isBelowThreshold ? ' below-threshold' : ''}`}
+            className={`progress-fill${isOverBudget ? ' over-budget' : isAboveThreshold ? ' below-threshold' : ''}`}
             style={{ width: `${fillWidth}%` }}
           />
         </div>

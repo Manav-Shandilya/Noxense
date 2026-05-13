@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchTransactions, fetchCategories, deleteTransaction } from '../services/api';
+import { checkBudgetAfterMutation } from '../services/notifications';
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-IN', {
@@ -76,6 +77,7 @@ export default function TransactionList({ month, year, onEdit, onDeleted, refres
       await deleteTransaction(txn.id);
       setTransactions((prev) => prev.filter((t) => t.id !== txn.id));
       if (onDeleted) onDeleted();
+      checkBudgetAfterMutation();
     } catch (err) {
       alert('Failed to delete transaction: ' + err.message);
     }

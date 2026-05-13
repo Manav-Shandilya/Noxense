@@ -215,7 +215,7 @@ describe('GET /api/dashboard', () => {
     expect(data.remainingBudget).toBe(0);
     expect(data.budgetUtilizationPercent).toBe(0);
     expect(data.isOverBudget).toBe(true); // remainingBudget (0) <= 0
-    expect(data.isBelowThreshold).toBe(false); // 0 < 0 * 0.2 = 0 < 0 = false
+    expect(data.isAboveThreshold).toBe(false); // 0 < 0 * 0.2 = 0 < 0 = false
     expect(data.categoryBreakdown).toEqual([]);
     expect(data.totalBalance).toBe(15000); // 10000 + 5000
   });
@@ -314,7 +314,7 @@ describe('GET /api/dashboard', () => {
     expect(data.isOverBudget).toBe(false);
   });
 
-  it('sets isBelowThreshold correctly based on alert_threshold_percent', async () => {
+  it('sets isAboveThreshold correctly based on alert_threshold_percent', async () => {
     mockDB._addBudget({ month: 6, year: 2024, amount: 5000 });
     // threshold is 20%, so alert when remaining < 5000 * 0.2 = 1000
     mockDB._addTransaction({ type: 'expense', amount: 4200, category_id: 1, account_id: 1, date: '2024-06-05', note: '' });
@@ -326,10 +326,10 @@ describe('GET /api/dashboard', () => {
     // threshold = 5000 * 0.2 = 1000
     // 800 < 1000 => true
     expect(data.remainingBudget).toBe(800);
-    expect(data.isBelowThreshold).toBe(true);
+    expect(data.isAboveThreshold).toBe(true);
   });
 
-  it('sets isBelowThreshold false when remaining is above threshold', async () => {
+  it('sets isAboveThreshold false when remaining is above threshold', async () => {
     mockDB._addBudget({ month: 6, year: 2024, amount: 5000 });
     mockDB._addTransaction({ type: 'expense', amount: 2000, category_id: 1, account_id: 1, date: '2024-06-05', note: '' });
 
@@ -340,7 +340,7 @@ describe('GET /api/dashboard', () => {
     // threshold = 5000 * 0.2 = 1000
     // 3000 < 1000 => false
     expect(data.remainingBudget).toBe(3000);
-    expect(data.isBelowThreshold).toBe(false);
+    expect(data.isAboveThreshold).toBe(false);
   });
 
   it('returns correct categoryBreakdown', async () => {
