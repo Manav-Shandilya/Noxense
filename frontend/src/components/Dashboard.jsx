@@ -27,28 +27,26 @@ const CATEGORY_COLORS = [
 ];
 
 function DonutChart({ breakdown, totalExpenses }) {
+  const [activeSegment, setActiveSegment] = useState(null);
   const size = 180;
   const strokeWidth = 28;
-  const radius = (size - strokeWidth) / 2;
+  const radius = (size - strokeWidth-5) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
   let cumulativePercent = 0;
   const segments = breakdown.map((cat, i) => {
     const percent = totalExpenses > 0 ? (cat.total / totalExpenses) * 100 : 0;
-    const offset = circumference * (1 - cumulativePercent / 100);
     const length = circumference * (percent / 100);
     cumulativePercent += percent;
     return {
       ...cat,
       percent,
-      offset: circumference - (circumference * (cumulativePercent - percent) / 100),
       length,
       color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
     };
   });
 
-  // Build stroke-dasharray segments
   let accumulatedOffset = 0;
 
   return (
@@ -60,7 +58,7 @@ function DonutChart({ breakdown, totalExpenses }) {
           cy={center}
           r={radius}
           fill="none"
-          stroke="#f1f5f9"
+          stroke="#eae6e0"
           strokeWidth={strokeWidth}
         />
         {/* Segments */}
@@ -68,6 +66,7 @@ function DonutChart({ breakdown, totalExpenses }) {
           const dashArray = `${seg.length} ${circumference - seg.length}`;
           const dashOffset = circumference - accumulatedOffset;
           accumulatedOffset += seg.length;
+          const isActive = activeSegment?.categoryId === seg.categoryId;
           return (
             <circle
               key={seg.categoryId || i}
@@ -76,18 +75,34 @@ function DonutChart({ breakdown, totalExpenses }) {
               r={radius}
               fill="none"
               stroke={seg.color}
-              strokeWidth={strokeWidth}
+              strokeWidth={isActive ? strokeWidth + 4 : strokeWidth}
               strokeDasharray={dashArray}
               strokeDashoffset={dashOffset}
               strokeLinecap="butt"
               transform={`rotate(-90 ${center} ${center})`}
+              opacity={activeSegment && !isActive ? 0.4 : 1}
+              style={{ cursor: 'pointer', transition: 'opacity 0.2s, stroke-width 0.2s' }}
+              onMouseEnter={() => setActiveSegment(seg)}
+              onMouseLeave={() => setActiveSegment(null)}
+              onClick={() => setActiveSegment(isActive ? null : seg)}
             />
           );
         })}
         {/* Center text */}
-        <text x={center} y={center - 6} textAnchor="middle" className="donut-center-percent">
-          {totalExpenses > 0 ? '100%' : '0%'}
-        </text>
+        {activeSegment ? (
+          <>
+            <text x={center} y={center - 8} textAnchor="middle" className="donut-center-name">
+              {activeSegment.name}
+            </text>
+            <text x={center} y={center + 14} textAnchor="middle" className="donut-center-amount">
+              {formatCurrency(activeSegment.total)}
+            </text>
+          </>
+        ) : (
+          <text x={center} y={center - 6} textAnchor="middle" className="donut-center-percent">
+            {/* {totalExpenses > 0 ? '100%' : '0%'} */}
+          </text>
+        )}
       </svg>
     </div>
   );
