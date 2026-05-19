@@ -190,6 +190,10 @@ export default function CategoryManager({ onClose, onChanged }) {
       </form>
       {addError && <p className="category-form-error">{addError}</p>}
 
+      <p className="category-exclude-hint">
+        <strong>Exclude</strong> — Transactions in this category won't count toward your monthly budget
+      </p>
+
       {/* Category list */}
       <ul className="category-list">
         {categories.map((cat) => (

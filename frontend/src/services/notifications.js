@@ -107,7 +107,7 @@ export async function checkBudgetAfterMutation() {
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
     const data = await fetchDashboard(month, year);
-
+    console.log('data = ', data);
     await checkAndNotify({
       month,
       year,

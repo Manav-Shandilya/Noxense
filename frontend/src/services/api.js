@@ -14,8 +14,9 @@ function authHeaders() {
 function handle401(res) {
   if (res.status === 401) {
     sessionStorage.removeItem('token');
-    window.location.reload();
-    throw new Error('Session expired');
+    const err = new Error('Session expired');
+    err.status = 401;
+    throw err;
   }
 }
 
@@ -47,16 +48,64 @@ async function mutate(url, method, body) {
 
 // --- Auth ---
 
-export async function login(pin) {
+// --- Auth ---
+
+export async function register(email, password) {
+  const res = await fetch(`${API_BASE}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (res.status === 409) throw new Error('Email already registered');
+  if (!res.ok) throw new Error('Registration failed');
+  const { token, userId } = await res.json();
+  sessionStorage.setItem('token', token);
+  localStorage.setItem('token', token);
+  localStorage.setItem('userId', String(userId));
+  return { token, userId };
+}
+
+export async function loginWithEmail(email, password) {
   const res = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin }),
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error('Invalid credentials');
+  const { token, userId } = await res.json();
+  sessionStorage.setItem('token', token);
+  localStorage.setItem('token', token);
+  localStorage.setItem('userId', String(userId));
+  return { token, userId };
+}
+
+export async function loginWithPin(pin) {
+  const userId = localStorage.getItem('userId');
+  if (!userId) throw new Error('No user found');
+  const res = await fetch(`${API_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin, userId: parseInt(userId) }),
   });
   if (!res.ok) throw new Error('Invalid PIN');
   const { token } = await res.json();
   sessionStorage.setItem('token', token);
   return token;
+}
+
+export async function setPin(pin) {
+  const res = await fetch(`${API_BASE}/pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) throw new Error('Failed to set PIN');
+  return true;
+}
+
+// Keep old login function for backward compatibility
+export async function login(pin) {
+  return loginWithPin(pin);
 }
 
 export function logout() {

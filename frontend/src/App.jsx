@@ -7,6 +7,8 @@ import CategoryManager from './components/CategoryManager';
 import AccountManager from './components/AccountManager';
 import BudgetSettings from './components/BudgetSettings';
 import { isOnline, onConnectivityChange, replay, pendingCount } from './services/offlineQueue';
+import SignUpScreen from './components/SignUpScreen';
+import EmailLoginScreen from './components/EmailLoginScreen';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -20,6 +22,10 @@ function isLoggedIn() {
   return !!sessionStorage.getItem('token');
 }
 
+function hasAccount() {
+  return !!localStorage.getItem('token');
+}
+
 function getCurrentMonth() {
   const now = new Date();
   return { month: now.getMonth() + 1, year: now.getFullYear() };
@@ -27,6 +33,7 @@ function getCurrentMonth() {
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(isLoggedIn());
+  const [authScreen, setAuthScreen] = useState(hasAccount() ? 'pin' : 'signup');
   const [online, setOnline] = useState(isOnline());
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -37,6 +44,7 @@ export default function App() {
   const [showTxnForm, setShowTxnForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [fabVisible, setFabVisible] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -95,8 +103,19 @@ export default function App() {
     setAuthenticated(true);
   }
 
+  // Called after email login/signup succeeds — stores persistent token
+  function handleEmailAuth() {
+    // Token is already in sessionStorage from api.js login call
+    // Copy to localStorage so we know this device has an account
+    const token = sessionStorage.getItem('token');
+    if (token) {
+      localStorage.setItem('token', token);
+    }
+    setAuthenticated(true);
+  }
+
   function handleLogout() {
-    sessionStorage.removeItem('token');
+    handleFullLogout();
     setAuthenticated(false);
   }
 
@@ -127,8 +146,34 @@ export default function App() {
     triggerRefresh();
   }
 
+  function handleFullLogout() {
+    sessionStorage.removeItem('token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('pin_hash');
+    setAuthenticated(false);
+    setAuthScreen('signup');
+  }
+
+  function onSwitchToLogin(){
+    setAuthScreen('login');
+  }
+
+  function onSwitchToSignup(){
+    setAuthScreen('signup');
+  }
+
   if (!authenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
+    // Returning user with stored token → show PIN screen
+    if (authScreen === 'pin' && hasAccount()) {
+      return <LoginScreen onLogin={handleLogin} onLogout={handleFullLogout} />;
+    }
+    // Email login screen
+    if (authScreen === 'login') {
+      return <EmailLoginScreen onLogin={handleEmailAuth} onSwitchToSignup={onSwitchToSignup} />;
+    }
+    // Signup screen (first time)
+    return <SignUpScreen onSwitchToLogin={onSwitchToLogin} onSignUp={handleEmailAuth} />;
   }
 
   return (
@@ -190,12 +235,21 @@ export default function App() {
               🔔
               <span className="notification-badge">2</span>
             </button> */}
-            <div className="user-avatar">
-              <span className="avatar-circle">U</span>
+            <div className="user-menu-wrapper">
+              <button className="user-menu-trigger" onClick={() => setShowUserMenu(!showUserMenu)}>
+                <span className="avatar-circle">👤</span>
+                <span className="dropdown-chevron">{showUserMenu ? '‹' : '›'}</span>
+              </button>
+              {showUserMenu && (
+                <div className="user-menu-dropdown">
+                  <button className="user-menu-item" onClick={() => { setShowUserMenu(false); handleLogout(); }}>
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
-            <button className="logout-btn header-dropdown" onClick={handleLogout} aria-label="Menu">
-              <span className="logout-text">Logout</span>
-              <span className="dropdown-chevron">›</span>
+            <button className="logout-btn desktop-only" onClick={handleLogout}>
+              Logout
             </button>
           </div>
         </header>

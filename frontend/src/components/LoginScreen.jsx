@@ -11,7 +11,7 @@ async function hashPin(pin) {
 
 const PIN_LENGTH = 4;
 
-function PinDots({ length, filled, error }) {
+export function PinDots({ length, filled, error }) {
   return (
     <div className={`pin-dots${error ? ' pin-shake' : ''}`}>
       {Array.from({ length }, (_, i) => (
@@ -24,7 +24,7 @@ function PinDots({ length, filled, error }) {
   );
 }
 
-function PinKeypad({ onDigit, onDelete, disabled }) {
+export function PinKeypad({ onDigit, onDelete, disabled }) {
   const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, 'del'];
   return (
     <div className="pin-keypad">
@@ -60,7 +60,7 @@ function PinKeypad({ onDigit, onDelete, disabled }) {
   );
 }
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, onLogout }) {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState('');
@@ -133,6 +133,11 @@ export default function LoginScreen({ onLogin }) {
       try {
         const hash = await hashPin(enteredPin);
         localStorage.setItem('pin_hash', hash);
+        // Restore session from persistent token
+        const persistentToken = localStorage.getItem('token');
+        if (persistentToken) {
+          sessionStorage.setItem('token', persistentToken);
+        }
         onLogin();
       } catch {
         setError('Something went wrong');
@@ -157,6 +162,11 @@ export default function LoginScreen({ onLogin }) {
       if (storedHash) {
         const hash = await hashPin(enteredPin);
         if (hash === storedHash) {
+          // Local PIN verified — restore session from persistent token
+          const persistentToken = localStorage.getItem('token');
+          if (persistentToken) {
+            sessionStorage.setItem('token', persistentToken);
+          }
           onLogin();
           return;
         }
@@ -201,6 +211,14 @@ export default function LoginScreen({ onLogin }) {
           onDelete={handleDelete}
           disabled={loading}
         />
+
+        {onLogout && (
+          <p className="auth-switch" style={{ marginTop: '1.5rem' }}>
+            <button type="button" className="auth-switch-btn" onClick={onLogout}>
+              Switch Account
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );

@@ -22,8 +22,8 @@ const MONTH_NAMES = [
 ];
 
 const CATEGORY_COLORS = [
-  '#1e40af', '#7c3aed', '#dc2626', '#ea580c', '#d97706',
-  '#16a34a', '#0891b2', '#be185d', '#4f46e5', '#059669',
+  '#8b7345', '#c4a96a', '#6b6050', '#a68b5b', '#d4b87a',
+  '#5a8a5e', '#9c7a4f', '#7a6b55', '#b89e6a', '#4a6b4a',
 ];
 
 function DonutChart({ breakdown, totalExpenses }) {
@@ -108,15 +108,15 @@ export default function Dashboard({ onAddTransaction }) {
       .then((result) => {
         if (!cancelled) {
           setData(result);
-        //   checkAndNotify({
-        //     month: period.month,
-        //     year: period.year,
-        //     remainingBudget: result.remainingBudget,
-        //     budgetAmount: result.budgetAmount,
-        //     alertThresholdPercent: result.alertThresholdPercent,
-        //     aboveThreshold: result.isAboveThreshold,
-        //     isOverBudget: result.isOverBudget,
-        //   });
+          checkAndNotify({
+            month: period.month,
+            year: period.year,
+            remainingBudget: result.remainingBudget,
+            budgetAmount: result.budgetAmount,
+            alertThresholdPercent: result.alertThresholdPercent,
+            aboveThreshold: result.isAboveThreshold,
+            isOverBudget: result.isOverBudget,
+          });
         }
       })
       .catch((err) => {
