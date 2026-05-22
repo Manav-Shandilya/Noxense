@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
-import { fetchTransactions, fetchCategories, deleteTransaction } from '../services/api';
+import { fetchTransactions, deleteTransaction } from '../services/api';
 import { checkBudgetAfterMutation } from '../services/notifications';
+
+function getCurrentMonth() {
+  const now = new Date();
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-IN', {
@@ -27,34 +32,47 @@ function groupByDate(transactions) {
     if (!groups[key]) groups[key] = [];
     groups[key].push(txn);
   }
-  // Sort dates descending (most recent first)
   return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
 }
 
-export default function TransactionList({ month, year, onEdit, onDeleted, refreshKey }) {
-  const [transactions, setTransactions] = useState([]);
-  const [excludedCategoryIds, setExcludedCategoryIds] = useState(new Set());
-  const [loading, setLoading] = useState(true);
+export default function TransactionList({ month, year, categories, initialTransactions, setTransactions: setParentTransactions, onEdit, onDeleted, refreshKey }) {
+  const currentMonth = getCurrentMonth();
+  const isCurrentMonth = month === currentMonth.month && year === currentMonth.year;
+
+  const [transactions, setTransactions] = useState(
+    isCurrentMonth && initialTransactions ? initialTransactions : []
+  );
+  const [loading, setLoading] = useState(
+    !(isCurrentMonth && initialTransactions && initialTransactions.length >= 0)
+  );
   const [error, setError] = useState(null);
 
+  const excludedCategoryIds = new Set(
+    (categories || [])
+      .filter((c) => c.excluded_from_budget)
+      .map((c) => c.id)
+  );
+
   useEffect(() => {
+    // If current month and we have initial data, use it
+    if (isCurrentMonth && initialTransactions) {
+      setTransactions(initialTransactions);
+      setLoading(false);
+      return;
+    }
+
+    // Otherwise fetch
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    Promise.all([
-      fetchTransactions(month, year),
-      fetchCategories(),
-    ])
-      .then(([txns, categories]) => {
+    fetchTransactions(month, year)
+      .then((txns) => {
         if (!cancelled) {
           setTransactions(txns);
-          const excluded = new Set(
-            categories
-              .filter((c) => c.excluded_from_budget)
-              .map((c) => c.id)
-          );
-          setExcludedCategoryIds(excluded);
+          if (isCurrentMonth && setParentTransactions) {
+            setParentTransactions(txns);
+          }
         }
       })
       .catch((err) => {
@@ -66,6 +84,14 @@ export default function TransactionList({ month, year, onEdit, onDeleted, refres
 
     return () => { cancelled = true; };
   }, [month, year, refreshKey]);
+
+  // Sync with parent when initialTransactions changes (e.g., after refresh)
+  useEffect(() => {
+    if (isCurrentMonth && initialTransactions) {
+      setTransactions(initialTransactions);
+      setLoading(false);
+    }
+  }, [initialTransactions]);
 
   async function handleDelete(txn) {
     const confirmed = window.confirm(

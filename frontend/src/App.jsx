@@ -7,6 +7,7 @@ import CategoryManager from './components/CategoryManager';
 import AccountManager from './components/AccountManager';
 import BudgetSettings from './components/BudgetSettings';
 import { isOnline, onConnectivityChange, replay, pendingCount } from './services/offlineQueue';
+import { fetchCategories, fetchAccounts, fetchDashboard, fetchTransactions, fetchBudget, fetchSettings } from './services/api';
 import SignUpScreen from './components/SignUpScreen';
 import EmailLoginScreen from './components/EmailLoginScreen';
 
@@ -40,6 +41,15 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [txnMonth, setTxnMonth] = useState(getCurrentMonth);
 
+  // Shared data state
+  const [categories, setCategories] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [budgetData, setBudgetData] = useState(null);
+  const [settingsData, setSettingsData] = useState(null);
+  const [dataLoading, setDataLoading] = useState(true);
+
   // Transaction form modal state
   const [showTxnForm, setShowTxnForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -49,6 +59,37 @@ export default function App() {
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // Fetch all shared data on login (current month)
+  const loadSharedData = useCallback(async () => {
+    if (!authenticated) return;
+    setDataLoading(true);
+    const { month, year } = getCurrentMonth();
+    try {
+      const [cats, accts, dashboard, txns, budget, settings] = await Promise.all([
+        fetchCategories(),
+        fetchAccounts(),
+        fetchDashboard(month, year),
+        fetchTransactions(month, year),
+        fetchBudget(month, year),
+        fetchSettings(),
+      ]);
+      setCategories(cats);
+      setAccounts(accts);
+      setDashboardData(dashboard);
+      setTransactions(txns);
+      setBudgetData(budget);
+      setSettingsData(settings);
+    } catch (err) {
+      // silently fail — components will handle missing data
+    } finally {
+      setDataLoading(false);
+    }
+  }, [authenticated]);
+
+  useEffect(() => {
+    loadSharedData();
+  }, [loadSharedData, refreshKey]);
 
   // Hide FAB on scroll down, show on scroll to top
   useEffect(() => {
@@ -103,10 +144,7 @@ export default function App() {
     setAuthenticated(true);
   }
 
-  // Called after email login/signup succeeds — stores persistent token
   function handleEmailAuth() {
-    // Token is already in sessionStorage from api.js login call
-    // Copy to localStorage so we know this device has an account
     const token = sessionStorage.getItem('token');
     if (token) {
       localStorage.setItem('token', token);
@@ -164,15 +202,12 @@ export default function App() {
   }
 
   if (!authenticated) {
-    // Returning user with stored token → show PIN screen
     if (authScreen === 'pin' && hasAccount()) {
       return <LoginScreen onLogin={handleLogin} onLogout={handleFullLogout} />;
     }
-    // Email login screen
     if (authScreen === 'login') {
       return <EmailLoginScreen onLogin={handleEmailAuth} onSwitchToSignup={onSwitchToSignup} />;
     }
-    // Signup screen (first time)
     return <SignUpScreen onSwitchToLogin={onSwitchToLogin} onSignUp={handleEmailAuth} />;
   }
 
@@ -231,10 +266,6 @@ export default function App() {
             ))}
           </nav>
           <div className="header-right">
-            {/* <button className="notification-bell" aria-label="Notifications">
-              🔔
-              <span className="notification-badge">2</span>
-            </button> */}
             <div className="user-menu-wrapper">
               <button className="user-menu-trigger" onClick={() => setShowUserMenu(!showUserMenu)}>
                 <span className="avatar-circle">👤</span>
@@ -257,7 +288,10 @@ export default function App() {
         {/* Page Content */}
         <main className="page-content" role="tabpanel">
           {activeTab === 'dashboard' && (
-            <Dashboard key={refreshKey} onAddTransaction={handleAddTransaction} />
+            <Dashboard
+              initialData={dashboardData}
+              setDashboardData={setDashboardData}
+            />
           )}
           {activeTab === 'transactions' && (
             <>
@@ -283,6 +317,9 @@ export default function App() {
               <TransactionList
                 month={txnMonth.month}
                 year={txnMonth.year}
+                categories={categories}
+                initialTransactions={transactions}
+                setTransactions={setTransactions}
                 onEdit={handleEditTransaction}
                 onDeleted={triggerRefresh}
                 refreshKey={refreshKey}
@@ -290,13 +327,25 @@ export default function App() {
             </>
           )}
           {activeTab === 'categories' && (
-            <CategoryManager onChanged={handleCategoryChange} />
+            <CategoryManager
+              categories={categories}
+              setCategories={setCategories}
+              onChanged={handleCategoryChange}
+            />
           )}
           {activeTab === 'accounts' && (
-            <AccountManager onChanged={triggerRefresh} />
+            <AccountManager
+              accounts={accounts}
+              setAccounts={setAccounts}
+              onChanged={triggerRefresh}
+            />
           )}
           {activeTab === 'budget' && (
-            <BudgetSettings onChanged={handleBudgetChange} />
+            <BudgetSettings
+              initialBudgetData={budgetData}
+              initialSettingsData={settingsData}
+              onChanged={handleBudgetChange}
+            />
           )}
         </main>
 
@@ -331,6 +380,8 @@ export default function App() {
       {showTxnForm && (
         <TransactionForm
           transaction={editingTransaction}
+          categories={categories}
+          accounts={accounts}
           onClose={handleTxnFormClose}
           onSaved={handleTxnSaved}
         />

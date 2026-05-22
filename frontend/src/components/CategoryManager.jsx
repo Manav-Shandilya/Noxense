@@ -1,16 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  fetchCategories,
   createCategory,
   updateCategory,
   deleteCategory,
 } from '../services/api';
 
-export default function CategoryManager({ onClose, onChanged }) {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
+export default function CategoryManager({ categories, setCategories, onClose, onChanged }) {
   // Add form state
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState(null);
@@ -23,23 +18,6 @@ export default function CategoryManager({ onClose, onChanged }) {
 
   // Conflict modal state
   const [conflictCategory, setConflictCategory] = useState(null);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  async function loadCategories() {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchCategories();
-      setCategories(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -129,38 +107,6 @@ export default function CategoryManager({ onClose, onChanged }) {
 
   function dismissConflict() {
     setConflictCategory(null);
-  }
-
-  if (loading) {
-    return (
-      <div className="category-manager">
-        <div className="category-manager-header">
-          <h2>Categories</h2>
-          {onClose && (
-            <button className="modal-close-btn" onClick={onClose} aria-label="Close">
-              ×
-            </button>
-          )}
-        </div>
-        <p className="category-manager-loading">Loading categories...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="category-manager">
-        <div className="category-manager-header">
-          <h2>Categories</h2>
-          {onClose && (
-            <button className="modal-close-btn" onClick={onClose} aria-label="Close">
-              ×
-            </button>
-          )}
-        </div>
-        <p className="category-manager-error">Error: {error}</p>
-      </div>
-    );
   }
 
   return (

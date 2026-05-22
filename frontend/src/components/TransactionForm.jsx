@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   createTransaction,
   updateTransaction,
-  fetchCategories,
-  fetchAccounts,
 } from '../services/api';
 import { checkBudgetAfterMutation } from '../services/notifications';
 
@@ -12,7 +10,7 @@ function todayStr() {
   return d.toISOString().slice(0, 10);
 }
 
-export default function TransactionForm({ transaction, onClose, onSaved }) {
+export default function TransactionForm({ transaction, categories, accounts, onClose, onSaved }) {
   const isEdit = !!transaction;
 
   const [amount, setAmount] = useState(transaction ? String(transaction.amount) : '');
@@ -22,22 +20,9 @@ export default function TransactionForm({ transaction, onClose, onSaved }) {
   const [date, setDate] = useState(transaction ? transaction.date : todayStr());
   const [note, setNote] = useState(transaction ? transaction.note || '' : '');
 
-  const [categories, setCategories] = useState([]);
-  const [accounts, setAccounts] = useState([]);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-
-  useEffect(() => {
-    Promise.all([fetchCategories(), fetchAccounts()])
-      .then(([cats, accts]) => {
-        setCategories(cats);
-        setAccounts(accts);
-      })
-      .catch(() => {
-        // Silently fail — user will see empty dropdowns
-      });
-  }, []);
 
   function validate() {
     const newErrors = {};

@@ -1,16 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  fetchAccounts,
   createAccount,
   updateAccount,
   deleteAccount,
 } from '../services/api';
 
-export default function AccountManager({ onClose, onChanged }) {
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
+export default function AccountManager({ accounts, setAccounts, onClose, onChanged }) {
   // Add form state
   const [newName, setNewName] = useState('');
   const [newBalance, setNewBalance] = useState('');
@@ -25,23 +20,6 @@ export default function AccountManager({ onClose, onChanged }) {
 
   // Conflict modal state
   const [conflictAccount, setConflictAccount] = useState(null);
-
-  useEffect(() => {
-    loadAccounts();
-  }, []);
-
-  async function loadAccounts() {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchAccounts();
-      setAccounts(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function formatCurrency(amount) {
     return new Intl.NumberFormat('en-IN', {
@@ -131,38 +109,6 @@ export default function AccountManager({ onClose, onChanged }) {
 
   function dismissConflict() {
     setConflictAccount(null);
-  }
-
-  if (loading) {
-    return (
-      <div className="account-manager">
-        <div className="account-manager-header">
-          <h2>Bank Accounts</h2>
-          {onClose && (
-            <button className="modal-close-btn" onClick={onClose} aria-label="Close">
-              ×
-            </button>
-          )}
-        </div>
-        <p className="account-manager-loading">Loading accounts...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="account-manager">
-        <div className="account-manager-header">
-          <h2>Bank Accounts</h2>
-          {onClose && (
-            <button className="modal-close-btn" onClick={onClose} aria-label="Close">
-              ×
-            </button>
-          )}
-        </div>
-        <p className="account-manager-error">Error: {error}</p>
-      </div>
-    );
   }
 
   return (

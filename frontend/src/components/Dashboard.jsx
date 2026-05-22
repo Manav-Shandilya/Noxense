@@ -30,7 +30,7 @@ function DonutChart({ breakdown, totalExpenses }) {
   const [activeSegment, setActiveSegment] = useState(null);
   const size = 180;
   const strokeWidth = 28;
-  const radius = (size - strokeWidth-5) / 2;
+  const radius = (size - strokeWidth - 5) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
@@ -52,7 +52,6 @@ function DonutChart({ breakdown, totalExpenses }) {
   return (
     <div className="donut-chart-container">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="donut-svg">
-        {/* Background circle */}
         <circle
           cx={center}
           cy={center}
@@ -61,7 +60,6 @@ function DonutChart({ breakdown, totalExpenses }) {
           stroke="#eae6e0"
           strokeWidth={strokeWidth}
         />
-        {/* Segments */}
         {segments.map((seg, i) => {
           const dashArray = `${seg.length} ${circumference - seg.length}`;
           const dashOffset = circumference - accumulatedOffset;
@@ -88,7 +86,6 @@ function DonutChart({ breakdown, totalExpenses }) {
             />
           );
         })}
-        {/* Center text */}
         {activeSegment ? (
           <>
             <text x={center} y={center - 8} textAnchor="middle" className="donut-center-name">
@@ -100,7 +97,6 @@ function DonutChart({ breakdown, totalExpenses }) {
           </>
         ) : (
           <text x={center} y={center - 6} textAnchor="middle" className="donut-center-percent">
-            {/* {totalExpenses > 0 ? '100%' : '0%'} */}
           </text>
         )}
       </svg>
@@ -108,41 +104,73 @@ function DonutChart({ breakdown, totalExpenses }) {
   );
 }
 
-export default function Dashboard({ onAddTransaction }) {
+export default function Dashboard({ initialData, setDashboardData }) {
   const [period, setPeriod] = useState(getCurrentMonth);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState(null);
 
+  // Track if this is the initial mount with pre-fetched data
+  const currentMonth = getCurrentMonth();
+  const isCurrentMonth = period.month === currentMonth.month && period.year === currentMonth.year;
+
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+    // If we have initialData and we're on the current month, use it directly
+    if (initialData && isCurrentMonth && !data) {
+      setData(initialData);
+      setLoading(false);
+      return;
+    }
 
-    fetchDashboard(period.month, period.year)
-      .then((result) => {
-        if (!cancelled) {
-          setData(result);
-          checkAndNotify({
-            month: period.month,
-            year: period.year,
-            remainingBudget: result.remainingBudget,
-            budgetAmount: result.budgetAmount,
-            alertThresholdPercent: result.alertThresholdPercent,
-            aboveThreshold: result.isAboveThreshold,
-            isOverBudget: result.isOverBudget,
-          });
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    // If month changed away from current, fetch new data
+    if (!isCurrentMonth || !initialData) {
+      let cancelled = false;
+      setLoading(true);
+      setError(null);
 
-    return () => { cancelled = true; };
+      fetchDashboard(period.month, period.year)
+        .then((result) => {
+          if (!cancelled) {
+            setData(result);
+            // Update parent state if it's the current month
+            if (isCurrentMonth && setDashboardData) {
+              setDashboardData(result);
+            }
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) setError(err.message);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => { cancelled = true; };
+    }
   }, [period.month, period.year]);
+
+  // Sync with initialData when it changes (e.g., after refresh)
+  useEffect(() => {
+    if (initialData && isCurrentMonth) {
+      setData(initialData);
+      setLoading(false);
+    }
+  }, [initialData]);
+
+  // Run notifications when data is available
+  useEffect(() => {
+    if (data && isCurrentMonth) {
+      checkAndNotify({
+        month: period.month,
+        year: period.year,
+        remainingBudget: data.remainingBudget,
+        budgetAmount: data.budgetAmount,
+        alertThresholdPercent: data.alertThresholdPercent,
+        aboveThreshold: data.isAboveThreshold,
+        isOverBudget: data.isOverBudget,
+      });
+    }
+  }, [data]);
 
   function goToPrevMonth() {
     setPeriod((prev) => {
@@ -199,7 +227,6 @@ export default function Dashboard({ onAddTransaction }) {
     budgetAmount,
     remainingBudget,
     budgetUtilizationPercent,
-    alertThresholdPercent,
     isOverBudget,
     isAboveThreshold,
     categoryBreakdown,

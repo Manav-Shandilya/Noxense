@@ -1,32 +1,62 @@
 import { useState, useEffect } from 'react';
 import { fetchBudget, setBudget, fetchSettings, updateSettings } from '../services/api';
 
-export default function BudgetSettings({ onClose, onChanged }) {
+function getCurrentMonth() {
+  const now = new Date();
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
+export default function BudgetSettings({ initialBudgetData, initialSettingsData, onClose, onChanged }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
+  const currentMonth = getCurrentMonth();
+  const isCurrentMonth = month === currentMonth.month && year === currentMonth.year;
+
   // Budget state
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [budgetLoading, setBudgetLoading] = useState(true);
+  const [budgetAmount, setBudgetAmount] = useState(
+    initialBudgetData?.budget?.amount != null ? String(initialBudgetData.budget.amount) : ''
+  );
+  const [budgetLoading, setBudgetLoading] = useState(!initialBudgetData);
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [budgetError, setBudgetError] = useState(null);
   const [budgetSuccess, setBudgetSuccess] = useState(false);
 
   // Settings state
-  const [threshold, setThreshold] = useState('');
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [threshold, setThreshold] = useState(
+    initialSettingsData?.alert_threshold_percent != null ? String(initialSettingsData.alert_threshold_percent) : '20'
+  );
+  const [settingsLoading, setSettingsLoading] = useState(!initialSettingsData);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
+  // Fetch budget when month changes (only if not current month with pre-fetched data)
   useEffect(() => {
+    if (isCurrentMonth && initialBudgetData) {
+      setBudgetAmount(initialBudgetData.budget?.amount != null ? String(initialBudgetData.budget.amount) : '');
+      setBudgetLoading(false);
+      return;
+    }
     loadBudget();
   }, [month, year]);
 
+  // Sync with initialBudgetData when it changes (e.g., after refresh)
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (isCurrentMonth && initialBudgetData) {
+      setBudgetAmount(initialBudgetData.budget?.amount != null ? String(initialBudgetData.budget.amount) : '');
+      setBudgetLoading(false);
+    }
+  }, [initialBudgetData]);
+
+  // Sync with initialSettingsData when it changes
+  useEffect(() => {
+    if (initialSettingsData) {
+      setThreshold(initialSettingsData.alert_threshold_percent != null ? String(initialSettingsData.alert_threshold_percent) : '20');
+      setSettingsLoading(false);
+    }
+  }, [initialSettingsData]);
 
   async function loadBudget() {
     setBudgetLoading(true);
@@ -39,20 +69,6 @@ export default function BudgetSettings({ onClose, onChanged }) {
       setBudgetError(err.message);
     } finally {
       setBudgetLoading(false);
-    }
-  }
-
-  async function loadSettings() {
-    setSettingsLoading(true);
-    setSettingsError(null);
-    setSettingsSuccess(false);
-    try {
-      const data = await fetchSettings();
-      setThreshold(data.alert_threshold_percent != null ? String(data.alert_threshold_percent) : '20');
-    } catch (err) {
-      setSettingsError(err.message);
-    } finally {
-      setSettingsLoading(false);
     }
   }
 
