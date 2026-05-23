@@ -6,6 +6,10 @@ A simple and efficient expense tracker application designed to help you manage a
 
 Noxense is a web-based expense tracking application that allows users to record, categorize, and analyze their daily expenses. With an intuitive interface and powerful features, managing your finances has never been easier.
 
+## Live Demo
+
+Try the app here: [NOXENSE](https://noxense.pages.dev/)
+
 ## Features
 
 ### 💰 Expense Management
@@ -16,6 +20,7 @@ Noxense is a web-based expense tracking application that allows users to record,
 
 ### 📊 Categories
 - Pre-defined expense categories (Food, Transportation, Entertainment, Utilities, Shopping, etc.)
+- New Categories can be added
 - Organize expenses by category for better tracking and analysis
 - Visual category-based organization for easier budgeting
 
@@ -28,7 +33,6 @@ Noxense is a web-based expense tracking application that allows users to record,
 ### 💾 Data Persistence
 - Local storage support to save your expenses
 - Your data persists across browser sessions
-- No need for account creation or login
 
 ### 🎨 User-Friendly Interface
 - Clean and intuitive design
@@ -46,14 +50,7 @@ Noxense is a web-based expense tracking application that allows users to record,
 ## Technology Stack
 
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Storage**: Browser Local Storage
-- **Architecture**: Client-side single-page application
-
-## Live Demo
-
-Try the app here: **[INSERT_DEPLOYED_LINK_HERE](https://your-deployment-url-will-go-here)**
-
-> This is a placeholder. Replace `INSERT_DEPLOYED_LINK_HERE` with the actual deployment URL when ready.
+- **Storage**: Cloudflare D1, Browser Local Storage
 
 ## Key Benefits
 
@@ -62,10 +59,6 @@ Try the app here: **[INSERT_DEPLOYED_LINK_HERE](https://your-deployment-url-will
 ✅ **Fast & Responsive** - Instant feedback and quick operations  
 ✅ **Easy to Learn** - Minimal learning curve with intuitive interface  
 ✅ **Mobile Friendly** - Use on the go from any device
-
-## Contributing
-
-Contributions are welcome! Feel free to fork this repository and submit pull requests for any improvements or bug fixes.
 
 ## License
 
