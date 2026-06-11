@@ -17,12 +17,15 @@ export default function TransactionForm({ transaction, categories, accounts, onC
   const [type, setType] = useState(transaction ? transaction.type : '');
   const [categoryId, setCategoryId] = useState(transaction ? transaction.category_id : '');
   const [accountId, setAccountId] = useState(transaction ? transaction.account_id : '');
+  const [toAccountId, setToAccountId] = useState(transaction ? transaction.to_account_id || '' : '');
   const [date, setDate] = useState(transaction ? transaction.date : todayStr());
   const [note, setNote] = useState(transaction ? transaction.note || '' : '');
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+
+  const isTransfer = type === 'transfer';
 
   function validate() {
     const newErrors = {};
@@ -33,11 +36,17 @@ export default function TransactionForm({ transaction, categories, accounts, onC
     if (!type) {
       newErrors.type = 'Please select a type';
     }
-    if (!categoryId) {
+    if (!isTransfer && !categoryId) {
       newErrors.categoryId = 'Please select a category';
     }
     if (!accountId) {
-      newErrors.accountId = 'Please select a bank account';
+      newErrors.accountId = isTransfer ? 'Please select source account' : 'Please select a bank account';
+    }
+    if (isTransfer && !toAccountId) {
+      newErrors.toAccountId = 'Please select destination account';
+    }
+    if (isTransfer && accountId && toAccountId && String(accountId) === String(toAccountId)) {
+      newErrors.toAccountId = 'Source and destination accounts must be different';
     }
     if (!date) {
       newErrors.date = 'Date is required';
@@ -52,22 +61,35 @@ export default function TransactionForm({ transaction, categories, accounts, onC
 
     if (!validate()) return;
 
-    const payload = {
-      amount: parseFloat(amount),
-      type,
-      category_id: Number(categoryId),
-      account_id: Number(accountId),
-      date,
-      note: note.trim(),
-    };
-
     setSubmitting(true);
     try {
-      if (isEdit) {
-        await updateTransaction(transaction.id, payload);
+      if (isTransfer) {
+        // Single transfer transaction
+        await createTransaction({
+          amount: parseFloat(amount),
+          type: 'transfer',
+          account_id: Number(accountId),
+          to_account_id: Number(toAccountId),
+          date,
+          note: note.trim(),
+        });
       } else {
-        await createTransaction(payload);
+        const payload = {
+          amount: parseFloat(amount),
+          type,
+          category_id: Number(categoryId),
+          account_id: Number(accountId),
+          date,
+          note: note.trim(),
+        };
+
+        if (isEdit) {
+          await updateTransaction(transaction.id, payload);
+        } else {
+          await createTransaction(payload);
+        }
       }
+
       onSaved();
       onClose();
       checkBudgetAfterMutation();
@@ -121,31 +143,36 @@ export default function TransactionForm({ transaction, categories, accounts, onC
               <option value="">-- Select type --</option>
               <option value="income">Income</option>
               <option value="expense">Expense</option>
+              <option value="transfer">Transfer</option>
             </select>
             {errors.type && <span className="field-error">{errors.type}</span>}
           </div>
 
-          {/* Category */}
-          <div className="form-field">
-            <label htmlFor="txn-category">Category</label>
-            <select
-              id="txn-category"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              <option value="">-- Select category --</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            {errors.categoryId && <span className="field-error">{errors.categoryId}</span>}
-          </div>
+          {/* Category - hidden for transfers */}
+          {!isTransfer && (
+            <div className="form-field">
+              <label htmlFor="txn-category">Category</label>
+              <select
+                id="txn-category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+              >
+                <option value="">-- Select category --</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              {errors.categoryId && <span className="field-error">{errors.categoryId}</span>}
+            </div>
+          )}
 
-          {/* Bank Account */}
+          {/* Source Account */}
           <div className="form-field">
-            <label htmlFor="txn-account">Bank Account</label>
+            <label htmlFor="txn-account">
+              {isTransfer ? 'From Account' : 'Bank Account'}
+            </label>
             <select
               id="txn-account"
               value={accountId}
@@ -160,6 +187,28 @@ export default function TransactionForm({ transaction, categories, accounts, onC
             </select>
             {errors.accountId && <span className="field-error">{errors.accountId}</span>}
           </div>
+
+          {/* Destination Account - only for transfers */}
+          {isTransfer && (
+            <div className="form-field">
+              <label htmlFor="txn-to-account">To Account</label>
+              <select
+                id="txn-to-account"
+                value={toAccountId}
+                onChange={(e) => setToAccountId(e.target.value)}
+              >
+                <option value="">-- Select destination account --</option>
+                {accounts
+                  .filter((acc) => String(acc.id) !== String(accountId))
+                  .map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </option>
+                  ))}
+              </select>
+              {errors.toAccountId && <span className="field-error">{errors.toAccountId}</span>}
+            </div>
+          )}
 
           {/* Date */}
           <div className="form-field">
@@ -185,6 +234,13 @@ export default function TransactionForm({ transaction, categories, accounts, onC
             />
           </div>
 
+          {/* Transfer info */}
+          {isTransfer && (
+            <p className="transfer-info">
+              Transfers are not counted as expenses in your budget.
+            </p>
+          )}
+
           {/* Submit error */}
           {submitError && <p className="form-submit-error">{submitError}</p>}
 
@@ -194,7 +250,7 @@ export default function TransactionForm({ transaction, categories, accounts, onC
               Cancel
             </button>
             <button type="submit" className="form-save-btn" disabled={submitting}>
-              {submitting ? 'Saving...' : isEdit ? 'Update' : 'Save'}
+              {submitting ? 'Saving...' : isTransfer ? 'Transfer' : isEdit ? 'Update' : 'Save'}
             </button>
           </div>
         </form>

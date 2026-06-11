@@ -138,11 +138,12 @@ export default function TransactionList({ month, year, categories, initialTransa
               return (
               <li
                 key={txn.id}
-                className={`transaction-item${isExcluded ? ' excluded' : ''}`}
+                className={`transaction-item${isExcluded ? ' excluded' : ''}${txn.type === 'transfer' ? ' transfer' : ''}`}
               >
                 <div className="transaction-info">
                   <div className="transaction-primary">
-                    <span className="transaction-category">{txn.categoryName}</span>
+                    {txn.type === 'transfer' ? <span className="transaction-category">{'TRANSFER'}</span> :
+                    <span className="transaction-category">{txn.categoryName}</span> }
                     {isExcluded ? (
                       <span className="excluded-badge">Excluded</span>
                     ) : null}

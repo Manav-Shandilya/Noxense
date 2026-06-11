@@ -74,3 +74,40 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_user ON budgets(user_id);
+
+-- ============================================
+-- Migration: Add transfer support
+-- ============================================
+
+-- Recreate transactions table with 'transfer' type and to_account_id column
+CREATE TABLE IF NOT EXISTS transactions_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  type TEXT NOT NULL CHECK(type IN ('income', 'expense', 'transfer')),
+  amount REAL NOT NULL CHECK(amount > 0),
+  category_id INTEGER,
+  account_id INTEGER NOT NULL,
+  to_account_id INTEGER DEFAULT NULL,
+  date TEXT NOT NULL,
+  note TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (category_id) REFERENCES categories(id),
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
+-- Copy existing data
+INSERT OR IGNORE INTO transactions_new (id, user_id, type, amount, category_id, account_id, date, note, created_at)
+SELECT id, user_id, type, amount, category_id, account_id, date, note, created_at FROM transactions;
+
+-- Drop old table and rename
+DROP TABLE IF EXISTS transactions;
+ALTER TABLE transactions_new RENAME TO transactions;
+
+-- Re-create indexes
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_type_date ON transactions(type, date);
+CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_to_account ON transactions(to_account_id);

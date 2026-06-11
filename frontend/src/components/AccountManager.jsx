@@ -187,7 +187,7 @@ export default function AccountManager({ accounts, setAccounts, onClose, onChang
               <div className="account-display-row">
                 <div className="account-info">
                   <span className="account-manager-name">{account.name}</span>
-                  <span className="account-manager-balance">
+                  <span className={account.current_balance > 0 ? "account-manager-balance" : "account-manager-balance-negative"}>
                     {formatCurrency(account.current_balance ?? account.initial_balance ?? 0)}
                   </span>
                 </div>

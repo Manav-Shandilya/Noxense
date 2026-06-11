@@ -555,6 +555,7 @@ body {
 .transaction-item:hover { background: var(--bg-card-hover); }
 .transaction-item:last-child { border-bottom: none; }
 .transaction-item.excluded { background: #fdf8f0; border-left: 3px solid var(--accent-light); }
+.transaction-item.transfer { background: #fecc7c; border-left: 3px solid var(--accent-light); }
 
 .transaction-info { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; flex: 1; }
 .transaction-primary { display: flex; align-items: center; gap: 0.5rem; }
@@ -651,6 +652,7 @@ body {
 .account-info { display: flex; flex-direction: column; gap: 0.15rem; }
 .account-manager-name { font-size: 0.9rem; color: var(--text-primary); font-weight: 500; }
 .account-manager-balance { font-size: 0.8rem; color: var(--green); font-weight: 600; }
+.account-manager-balance-negative { font-size: 0.8rem; color: var(--red); font-weight: 600; }
 .account-controls { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 .account-edit-btn, .account-delete-btn { background: transparent; border: none; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.35rem; border-radius: 0.25rem; }
 .account-edit-btn:hover { background: #e8f0ff; }

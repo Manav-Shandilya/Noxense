@@ -270,7 +270,9 @@ export default {
         for (const account of accounts) {
           const income = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'income'").bind(account.id, userId).first();
           const expenses = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'expense'").bind(account.id, userId).first();
-          accountsWithBalance.push({ ...account, current_balance: account.initial_balance + income.total - expenses.total });
+          const transferOut = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'transfer'").bind(account.id, userId).first();
+          const transferIn = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE to_account_id = ? AND user_id = ? AND type = 'transfer'").bind(account.id, userId).first();
+          accountsWithBalance.push({ ...account, current_balance: account.initial_balance + income.total - expenses.total - transferOut.total + transferIn.total });
         }
         return json(accountsWithBalance);
       }
@@ -304,7 +306,9 @@ export default {
         const account = await env.DB.prepare('SELECT id, name, initial_balance, created_at FROM accounts WHERE id = ?').bind(id).first();
         const income = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'income'").bind(id, userId).first();
         const expenses = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'expense'").bind(id, userId).first();
-        return json({ ...account, current_balance: account.initial_balance + income.total - expenses.total });
+        const transferOut = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'transfer'").bind(id, userId).first();
+        const transferIn = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE to_account_id = ? AND user_id = ? AND type = 'transfer'").bind(id, userId).first();
+        return json({ ...account, current_balance: account.initial_balance + income.total - expenses.total - transferOut.total + transferIn.total });
       }
 
       // DELETE /api/accounts/:id
@@ -328,10 +332,12 @@ export default {
         const datePrefix = `${year}-${monthPadded}-%`;
         const { results } = await env.DB.prepare(
           `SELECT t.id, t.type, t.amount, t.category_id, c.name as categoryName,
-                  t.account_id, a.name as accountName, t.date, t.note, t.created_at
+                  t.account_id, a.name as accountName, t.to_account_id, a2.name as toAccountName,
+                  t.date, t.note, t.created_at
            FROM transactions t
            LEFT JOIN categories c ON t.category_id = c.id
            LEFT JOIN accounts a ON t.account_id = a.id
+           LEFT JOIN accounts a2 ON t.to_account_id = a2.id
            WHERE t.user_id = ? AND t.date LIKE ?
            ORDER BY t.date DESC, t.id DESC`
         ).bind(userId, datePrefix).all();
@@ -341,30 +347,43 @@ export default {
       // POST /api/transactions
       if (path === '/api/transactions' && request.method === 'POST') {
         const body = await request.json();
-        const { amount, type, category_id, account_id, date, note } = body;
+        const { amount, type, category_id, account_id, to_account_id, date, note } = body;
         if (amount === undefined || amount === null) return json({ error: 'amount is required' }, 400);
         if (typeof amount !== 'number' || amount <= 0) return json({ error: 'amount must be a positive number' }, 400);
         if (!type) return json({ error: 'type is required' }, 400);
-        if (type !== 'income' && type !== 'expense') return json({ error: "type must be 'income' or 'expense'" }, 400);
+        if (type !== 'income' && type !== 'expense' && type !== 'transfer') return json({ error: "type must be 'income', 'expense', or 'transfer'" }, 400);
         if (!account_id && account_id !== 0) return json({ error: 'account_id is required' }, 400);
         const account = await env.DB.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').bind(account_id, userId).first();
         if (!account) return json({ error: 'Account not found' }, 400);
-        if (!category_id && category_id !== 0) return json({ error: 'category_id is required' }, 400);
-        const category = await env.DB.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ?').bind(category_id, userId).first();
-        if (!category) return json({ error: 'Category not found' }, 400);
+
+        // Transfer-specific validation
+        if (type === 'transfer') {
+          if (!to_account_id) return json({ error: 'to_account_id is required for transfers' }, 400);
+          if (to_account_id === account_id) return json({ error: 'Source and destination accounts must be different' }, 400);
+          const toAccount = await env.DB.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').bind(to_account_id, userId).first();
+          if (!toAccount) return json({ error: 'Destination account not found' }, 400);
+        } else {
+          // Non-transfer requires category
+          if (!category_id && category_id !== 0) return json({ error: 'category_id is required' }, 400);
+          const category = await env.DB.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ?').bind(category_id, userId).first();
+          if (!category) return json({ error: 'Category not found' }, 400);
+        }
+
         if (!date) return json({ error: 'date is required' }, 400);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: 'date must be in YYYY-MM-DD format' }, 400);
 
         const result = await env.DB.prepare(
-          'INSERT INTO transactions (user_id, amount, type, category_id, account_id, date, note) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).bind(userId, amount, type, category_id, account_id, date, note || '').run();
+          'INSERT INTO transactions (user_id, amount, type, category_id, account_id, to_account_id, date, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(userId, amount, type, type === 'transfer' ? null : category_id, account_id, type === 'transfer' ? to_account_id : null, date, note || '').run();
 
         const transaction = await env.DB.prepare(
           `SELECT t.id, t.type, t.amount, t.category_id, c.name as categoryName,
-                  t.account_id, a.name as accountName, t.date, t.note, t.created_at
+                  t.account_id, a.name as accountName, t.to_account_id, a2.name as toAccountName,
+                  t.date, t.note, t.created_at
            FROM transactions t
            LEFT JOIN categories c ON t.category_id = c.id
            LEFT JOIN accounts a ON t.account_id = a.id
+           LEFT JOIN accounts a2 ON t.to_account_id = a2.id
            WHERE t.id = ?`
         ).bind(result.meta.last_row_id).first();
         return json(transaction, 201);
@@ -381,7 +400,7 @@ export default {
         const updates = [];
         const values = [];
         if (body.amount !== undefined) { if (typeof body.amount !== 'number' || body.amount <= 0) return json({ error: 'amount must be a positive number' }, 400); updates.push('amount = ?'); values.push(body.amount); }
-        if (body.type !== undefined) { if (body.type !== 'income' && body.type !== 'expense') return json({ error: "type must be 'income' or 'expense'" }, 400); updates.push('type = ?'); values.push(body.type); }
+        if (body.type !== undefined) { if (body.type !== 'income' && body.type !== 'expense' && body.type !== 'transfer') return json({ error: "type must be 'income', 'expense', or 'transfer'" }, 400); updates.push('type = ?'); values.push(body.type); }
         if (body.account_id !== undefined) { const a = await env.DB.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').bind(body.account_id, userId).first(); if (!a) return json({ error: 'Account not found' }, 400); updates.push('account_id = ?'); values.push(body.account_id); }
         if (body.category_id !== undefined) { const c = await env.DB.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ?').bind(body.category_id, userId).first(); if (!c) return json({ error: 'Category not found' }, 400); updates.push('category_id = ?'); values.push(body.category_id); }
         if (body.date !== undefined) { if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date)) return json({ error: 'date must be in YYYY-MM-DD format' }, 400); updates.push('date = ?'); values.push(body.date); }
@@ -502,7 +521,11 @@ export default {
         for (const acct of allAccounts) {
           const ai = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'income'").bind(acct.id, userId).first();
           const ae = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'expense'").bind(acct.id, userId).first();
-          accounts.push({ id: acct.id, name: acct.name, balance: acct.initial_balance + ai.total - ae.total });
+          // Transfers out (this account is source)
+          const transferOut = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE account_id = ? AND user_id = ? AND type = 'transfer'").bind(acct.id, userId).first();
+          // Transfers in (this account is destination)
+          const transferIn = await env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE to_account_id = ? AND user_id = ? AND type = 'transfer'").bind(acct.id, userId).first();
+          accounts.push({ id: acct.id, name: acct.name, balance: acct.initial_balance + ai.total - ae.total - transferOut.total + transferIn.total });
         }
         const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
 
